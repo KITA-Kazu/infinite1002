@@ -1,1 +1,291 @@
 
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>不定詞 90秒スピードタイムアタック</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<style>
+body{font-family:system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif}
+.chip{user-select:none;transition:.12s}
+.chip:active{transform:scale(.96)}
+.pop{animation:pop .25s}
+.shake{animation:shake .35s}
+.levelup{animation:levelup 1.1s ease both}
+@keyframes pop{from{transform:scale(.92);opacity:.4}to{transform:scale(1);opacity:1}}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+@keyframes levelup{0%{opacity:0;transform:scale(.5)}25%{opacity:1;transform:scale(1.1)}75%{opacity:1}100%{opacity:0;transform:scale(1.4)}}
+</style>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-800">
+<div class="max-w-3xl mx-auto p-4 sm:p-6">
+<header class="bg-white rounded-3xl shadow-sm p-5 mb-4">
+  <div class="flex justify-between items-center">
+    <div>
+      <p class="text-xs font-bold tracking-widest text-indigo-600">TO-INFINITIVE</p>
+      <h1 class="text-xl sm:text-2xl font-black">不定詞 90秒スピードタイムアタック</h1>
+    </div>
+    <div class="text-right">
+      <div id="timer" class="text-3xl font-black tabular-nums text-indigo-600">90</div>
+      <div class="text-xs text-slate-400">SECONDS</div>
+    </div>
+  </div>
+  <div class="mt-4 h-2 bg-slate-100 rounded-full overflow-hidden">
+    <div id="timerBar" class="h-full bg-indigo-500 transition-all duration-1000 linear" style="width:100%"></div>
+  </div>
+  <div class="grid grid-cols-3 gap-2 mt-4 text-center">
+    <div class="bg-slate-50 rounded-xl p-2"><div class="text-xs text-slate-400">LEVEL</div><div id="level" class="font-black text-lg">LV1</div></div>
+    <div class="bg-slate-50 rounded-xl p-2"><div class="text-xs text-slate-400">SCORE</div><div id="score" class="font-black text-lg">0</div></div>
+    <div class="bg-slate-50 rounded-xl p-2"><div class="text-xs text-slate-400">CLEAR</div><div id="progress" class="font-black text-lg">0 / 15</div></div>
+  </div>
+  <div class="flex justify-between text-xs mt-3">
+    <span>連続正解 <b id="correctStreak">0</b> / 3</span>
+    <span>連続不正解 <b id="wrongStreak">0</b> / 3</span>
+  </div>
+</header>
+
+<main class="bg-white rounded-3xl shadow-sm p-5 sm:p-7">
+  <div id="startScreen" class="text-center py-7">
+    <div class="text-6xl mb-4">🎯</div>
+    <h2 class="text-2xl font-black mb-3">定期テスト対策！不定詞タイムアタック</h2>
+    <p class="text-slate-500 leading-7 mb-6">
+      プリント掲載問題から出題！15問クリアを目指そう。<br>
+      LV1：基本3用法（名詞・形容詞・副詞）<br>
+      LV2：仮主語 It / 形式目的語 it<br>
+      LV3：判断根拠・結果・感情の原因<br>
+      LV4：意味上の主語・使役/知覚動詞<br>
+      LV5：完了不定詞・進行形の不定詞<br>
+      LV6：不定詞の受動態・総合応用
+    </p>
+    <button id="startBtn" class="px-10 py-4 rounded-2xl bg-indigo-600 text-white font-black text-lg shadow-lg hover:bg-indigo-700 transition">START</button>
+  </div>
+
+  <div id="questionScreen" class="hidden">
+    <div class="flex justify-between mb-4">
+      <span id="typeBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700"></span>
+      <span id="qNumber" class="text-sm font-bold text-slate-400"></span>
+    </div>
+    <div id="question" class="mb-5"></div>
+    <div id="choices" class="grid gap-3"></div>
+    <div id="feedback" class="min-h-12 mt-5 text-center font-bold"></div>
+  </div>
+
+  <div id="resultScreen" class="hidden text-center py-8">
+    <div id="resultIcon" class="text-6xl mb-4">🎉</div>
+    <h2 id="resultTitle" class="text-3xl font-black mb-3"></h2>
+    <p id="resultMessage" class="text-slate-500 mb-6"></p>
+    <div class="grid grid-cols-2 gap-3 max-w-sm mx-auto mb-6">
+      <div class="bg-slate-50 rounded-2xl p-4"><div class="text-xs text-slate-400">SCORE</div><div id="finalScore" class="text-2xl font-black"></div></div>
+      <div class="bg-slate-50 rounded-2xl p-4"><div class="text-xs text-slate-400">ANSWERED</div><div id="finalAnswered" class="text-2xl font-black"></div></div>
+    </div>
+    <button id="retryBtn" class="px-8 py-3 rounded-2xl bg-indigo-600 text-white font-black hover:bg-indigo-700 transition">もう一度挑戦</button>
+  </div>
+</main>
+
+<div id="levelUp" class="hidden fixed inset-0 pointer-events-none flex items-center justify-center">
+  <div class="levelup text-6xl sm:text-8xl font-black text-indigo-600 drop-shadow-lg">LEVEL UP!</div>
+</div>
+<p class="text-center text-xs text-slate-400 mt-4">2学期中間テスト対策プリントより出題。</p>
+</div>
+
+<script>
+const levels = {
+  "1": [
+    {"kind":"choice","jp":"歩くことは健康によい。","q":"( ) is good for your health.","choices":["To walk","Walking to","Walked","To walking"],"answer":"To walk","exp":"To walk: 主語の働きをする名詞的用法。"},
+    {"kind":"choice","jp":"この合宿の目的は100キロ泳ぐことだ。","q":"The aim of this camp is ( ) 100 kilometers.","choices":["to swim","swimming","swim","swam"],"answer":"to swim","exp":"is to swim: 補語の働きをする名詞的用法。"},
+    {"kind":"reorder","jp":"冷蔵庫に何か食べるものはありますか？","answer":["Is there","anything","to eat","in the fridge?"],"exp":"anything to eat: 名詞を修飾する形容詞的用法。"},
+    {"kind":"reorder","jp":"市には新しい駅舎を建てる計画がある。","answer":["The city","has a plan","to build","a new station building."],"exp":"a plan to build: 「〜を建てる計画」。"},
+    {"kind":"reorder","jp":"私は放課後いっしょに勉強する友だちがほしい。","answer":["I want","a friend","to study with","after school."],"exp":"study with の前置詞 with を忘れない。"},
+    {"kind":"choice","jp":"私は将来ITエンジニアになりたい。","q":"I want ( ) an IT engineer in the future.","choices":["to be","being","be","been"],"answer":"to be","exp":"want to do: 目的語の働きをする名詞的用法。"},
+    {"kind":"choice","jp":"彼らには助言をくれるよいコーチがいます。","q":"They have a good coach to ( ) them advice.","choices":["give","giving","gave","given"],"answer":"give","exp":"coach to give them advice: 形容詞的用法。"}
+  ],
+  "2": [
+    {"kind":"choice","jp":"野菜を食べることは大切です。","q":"( ) is important to eat vegetables.","choices":["It","This","That","To"],"answer":"It","exp":"It is ... to do (仮主語構文)。"},
+    {"kind":"choice","jp":"私はそのアプリを使うのは簡単だとわかった。","q":"I found ( ) easy to use the app.","choices":["it","that","this","them"],"answer":"it","exp":"find it C to do (形式目的語 it)。"},
+    {"kind":"reorder","jp":"ヒントなしでそのパズルを解くのは難しいと分かった。","answer":["I found it","difficult to solve","the puzzle","without a hint."],"exp":"found it C to do の並べ替え。"},
+    {"kind":"choice","jp":"明日の朝までに札幌まで車で行くのは不可能だ。","q":"It is ( ) to drive to Sapporo by tomorrow morning.","choices":["impossible","impossibility","impossibly","possible not"],"answer":"impossible","exp":"It is + 形容詞 + to do。"},
+    {"kind":"choice","jp":"ベンは私の助言を聞くのを拒否した。","q":"Ben ( ) to listen to my advice.","choices":["refused","refuse","refusing","was refused"],"answer":"refused","exp":"refuse to do: 〜することを拒む。"},
+    {"kind":"choice","jp":"私の母は新しい電動自転車を買わないことに決めた。","q":"My mother decided ( ) to buy a new e-bike.","choices":["not","no","never","don't"],"answer":"not","exp":"decide not to do: 不定詞の否定形は to の前に not。"}
+  ],
+  "3": [
+    {"kind":"choice","jp":"彼女は成長して偉大な科学者になった。","q":"She grew up ( ) a great scientist.","choices":["to be","to become not","being","became"],"answer":"to be","exp":"grew up to be ...: 副詞的用法（結果）。"},
+    {"kind":"reorder","jp":"私たちはバス停へ急いだが、結局8:30のバスに乗り遅れた。","answer":["We hurried","to the bus stop,","only to miss","the 8:30 bus."],"exp":"only to do: 「結局〜しただけだった」（結果）。"},
+    {"kind":"reorder","jp":"目を覚ましてみると、彼は病院にいた。","answer":["He awoke","to find that","he was","in the hospital."],"exp":"awoke to find ...: 「目覚めて〜だと知った」（結果）。"},
+    {"kind":"choice","jp":"車を3台持っているなんて、彼は金持ちにちがいない。","q":"He must be rich ( ) three cars.","choices":["to have","having","had","has"],"answer":"to have","exp":"must be ... to do: 判断の根拠「〜するとは」。"},
+    {"kind":"choice","jp":"アヤはその秘密を知って驚いた。","q":"Aya was surprised ( ) the secret.","choices":["to know","knowing","know","knew"],"answer":"to know","exp":"was surprised to know: 感情の原因。"},
+    {"kind":"reorder","jp":"妹はコンサートのチケットを手に入れて嬉しそうだった。","answer":["My sister looked","happy to get","a concert ticket."],"exp":"happy to do: 感情の原因。"}
+  ],
+  "4": [
+    {"kind":"choice","jp":"あなたがこの質問に答えることはたやすい。","q":"It is easy ( ) you to answer this question.","choices":["for","of","to","with"],"answer":"for","exp":"It is ... for 人 to do (意味上の主語)。"},
+    {"kind":"choice","jp":"その話を信じるなんて、私は愚かだった。","q":"It was foolish ( ) me to believe the story.","choices":["of","for","to","in"],"answer":"of","exp":"foolish(愚かな)など人の性質を表す形容詞の後は of。"},
+    {"kind":"choice","jp":"メグが授業に遅れるのは珍しいことだ。","q":"It is unusual ( ) Meg to be late for class.","choices":["for","of","to","at"],"answer":"for","exp":"for Meg to be late: 意味上の主語。"},
+    {"kind":"choice","jp":"私はエミにテーブルを掃除してくれるよう頼んだ。","q":"I asked Emi ( ) the table.","choices":["to clean","clean","cleaning","cleaned"],"answer":"to clean","exp":"ask A to do: Aに〜するよう頼む。"},
+    {"kind":"choice","jp":"先生は私たちに今年の目標について話し合わせました。","q":"The teacher had us ( ) about our goals.","choices":["talk","to talk","talking","talked"],"answer":"talk","exp":"使役動詞 had + O + 原形不定詞 (do)。"},
+    {"kind":"choice","jp":"コンテストであなたが踊るのを見ました。","q":"I saw you ( ) at the contest.","choices":["dance","to dance","danced","dances"],"answer":"dance","exp":"知覚動詞 saw + O + 原形不定詞 (do)。"}
+  ],
+  "5": [
+    {"kind":"choice","jp":"リサは若い頃、俳優だったようだ。","q":"Lisa seems ( ) an actor when she was young.","choices":["to have been","to be","have been","being"],"answer":"to have been","exp":"seems to have been: 完了不定詞（過去のこと）。"},
+    {"kind":"choice","jp":"彼らは皆、ダンスコンテストを楽しんでいるようだ。","q":"They all seemed ( ) the dance contest.","choices":["to be enjoying","to enjoy","enjoying","enjoyed"],"answer":"to be enjoying","exp":"seemed to be doing: 進行形の不定詞。"},
+    {"kind":"reorder","jp":"アレックスは猫が大好きなようだ。（S seems to...への書き換え）","answer":["Alex","seems","to love","cats."],"exp":"It seems that Alex loves... ＝ Alex seems to love..."},
+    {"kind":"reorder","jp":"ミサキはその秘密を知っていたようだ。","answer":["Misaki","seemed","to have known","the secret."],"exp":"過去の事柄を表す完了不定詞 to have known。"},
+    {"kind":"reorder","jp":"アンは先月、入院していたようだ。","answer":["Ann","seems to have","been in","the hospital","last month."],"exp":"seems to have been in the hospital。"}
+  ],
+  "6": [
+    {"kind":"choice","jp":"そのソフトウェアは更新される必要がある。","q":"The software needs ( ) updated.","choices":["to be","to","being","be"],"answer":"to be","exp":"needs to be updated: 不定詞の受動態。"},
+    {"kind":"reorder","jp":"その祭り18世紀に始まったと言われている。","answer":["The festival","is said","to have started","in the 18th century."],"exp":"is said to have started: 完了不定詞の応用。"},
+    {"kind":"reorder","jp":"ジムは部屋で電話中のようだ。","answer":["Jim seems","to be talking","on the phone","in his room."],"exp":"seems to be talking: 進行形の不定詞。"},
+    {"kind":"reorder","jp":"このジャケットは洗濯する必要がある。","answer":["This jacket","needs","to be washed."],"exp":"needs to be washed: 不定詞の受動態。"},
+    {"kind":"reorder","jp":"トムはチームのキャプテンに選ばれて嬉しかった。","answer":["Tom was glad","to be chosen","as captain","of the team."],"exp":"glad to be chosen: 感情の原因＋受動態。"}
+  ]
+};
+
+  let level=1,score=0,answered=0,correctStreak=0,wrongStreak=0,time=90,running=false,timerId=null,current=null,used={1:[],2:[],3:[],4:[],5:[],6:[]};
+const $=id=>document.getElementById(id);
+function shuffle(a){return [...a].sort(()=>Math.random()-.5)}
+
+function nextQuestion(){
+  if(answered>=15){finish(true);return}
+  let pool=levels[level];
+  if(used[level].length>=pool.length)used[level]=[];
+  let idx;
+  do{idx=Math.floor(Math.random()*pool.length)}while(used[level].includes(idx)&&used[level].length<pool.length);
+  used[level].push(idx);
+  current=pool[idx];
+  renderQuestion();
+}
+
+function renderQuestion(){
+  $('qNumber').textContent='Q'+(answered+1);$('level').textContent='LV'+level;
+  $('score').textContent=score;
+  $('progress').textContent=answered+' / 15';$('correctStreak').textContent=correctStreak;
+  $('wrongStreak').textContent=wrongStreak;
+  $('feedback').innerHTML='';$('typeBadge').textContent=current.kind==='choice'?'4択':'並べ替え';
+  $('typeBadge').className='px-3 py-1 rounded-full text-xs font-bold '+(level===3?'bg-emerald-100 text-emerald-700':level>=4?'bg-amber-100 text-amber-700':'bg-indigo-100 text-indigo-700');$('question').innerHTML=`
+    <div class="text-lg sm:text-xl font-bold text-slate-700 leading-8 mb-2">${current.jp}</div>
+    <div class="text-[11px] sm:text-xs text-slate-400 font-medium mb-2">${current.kind==='reorder'?'下の語句を、正しい順番に並べて英文を完成させよう。':'（ ）に入る最も適切なものを選ぼう。'}</div>
+    ${current.kind==='choice'?`<div class="text-xl sm:text-2xl font-bold leading-9">${current.q}</div>`:`<div class="text-sm text-slate-400">※ プリントの構文（to do / to be done等）を意識して並べよう。</div>`}
+  `;
+
+  const c=$('choices');c.innerHTML='';
+  if(current.kind==='choice'){
+    shuffle(current.choices).forEach(x=>{
+      let b=document.createElement('button');
+      b.className='w-full text-left p-4 rounded-2xl border-2 border-slate-200 font-bold text-base hover:border-indigo-400 hover:bg-indigo-50 transition';
+      b.textContent=x;
+      b.onclick=()=>answerChoice(x);
+      c.appendChild(b);
+    });
+  }else{
+    let selected=[];
+    let bank=shuffle(current.answer);
+    let bankDiv=document.createElement('div');
+    bankDiv.className='flex flex-wrap gap-2 mb-4';
+    let selectedDiv=document.createElement('div');
+    selectedDiv.className='min-h-14 p-3 rounded-2xl bg-slate-50 border border-dashed border-slate-300 flex flex-wrap gap-2 mb-4';
+    let submit=document.createElement('button');
+    submit.textContent='ANSWER';
+    submit.disabled=true;
+    submit.className='w-full p-4 rounded-2xl bg-indigo-600 text-white font-black disabled:opacity-40';
+
+    function redraw(){
+      selectedDiv.innerHTML='';
+      selected.forEach((w,i)=>{
+        let b=document.createElement('button');
+        b.className='chip px-3 py-2 rounded-xl bg-indigo-600 text-white font-bold';
+        b.textContent=w;
+        b.onclick=()=>{bank.push(selected.splice(i,1)[0]);redraw()};
+        selectedDiv.appendChild(b);
+      });
+      bankDiv.innerHTML='';
+      bank.forEach((w,i)=>{
+        let b=document.createElement('button');
+        b.className='chip px-3 py-2 rounded-xl bg-white border-2 border-slate-200 font-bold hover:border-indigo-400';
+        b.textContent=w;
+        b.onclick=()=>{selected.push(bank.splice(i,1)[0]);redraw()};
+        bankDiv.appendChild(b);
+      });
+      submit.disabled=selected.length!==current.answer.length;
+    }
+    submit.onclick=()=>answerReorder(selected);
+    c.innerHTML='<div class="text-xs font-bold text-slate-400 mb-2">あなたの答え</div>';
+    c.appendChild(selectedDiv);
+    c.insertAdjacentHTML('beforeend','<div class="text-xs font-bold text-slate-400 mb-2">語句（タップして選択）</div>');
+    c.appendChild(bankDiv);
+    c.appendChild(submit);
+    redraw();
+  }
+}
+
+function answerChoice(x){if(!running)return;const ok=x===current.answer;lock();showFeedback(ok,current.answer,current.exp);setTimeout(()=>after(ok),650)}
+function answerReorder(arr){if(!running)return;const ok=arr.join('|||')===current.answer.join('|||');lock();showFeedback(ok,current.answer.join(' '),current.exp);setTimeout(()=>after(ok),700)}
+function lock(){document.querySelectorAll('#choices button').forEach(b=>b.disabled=true)}
+
+function showFeedback(ok,ans,exp){
+  $('feedback').innerHTML=ok?`<span class="text-emerald-600">✓ 正解！</span> <span class="text-sm text-slate-500">${exp||''}</span>`:`<span class="text-rose-600">✕ 正解：${ans}</span><div class="text-sm text-slate-500 mt-1">${exp||''}</div>`;
+  $('question').classList.add(ok?'pop':'shake');
+  setTimeout(()=>$('question').classList.remove('pop','shake'),350);
+}
+
+function after(ok){
+  if(ok){
+    score++;answered++;correctStreak++;wrongStreak=0;
+    if(correctStreak>=3&&level<6){level++;correctStreak=0;showLevelUp()}
+  }else{
+    answered++;wrongStreak++;correctStreak=0;
+    if(wrongStreak>=3&&level>1){level--;wrongStreak=0;showLevelDown()}
+  }
+  $('score').textContent=score;
+  $('progress').textContent=answered+' / 15';$('correctStreak').textContent=correctStreak;
+  $('wrongStreak').textContent=wrongStreak;
+  if(answered>=15)finish(true);
+  else if(time<=0)finish(false);
+  else nextQuestion();
+}
+
+function showLevelUp(){const e=$('levelUp');e.querySelector('div').textContent='LEVEL UP!';e.classList.remove('hidden');setTimeout(()=>e.classList.add('hidden'),1100)}
+function showLevelDown(){const e=$('levelUp');e.querySelector('div').textContent='LEVEL DOWN';e.classList.remove('hidden');setTimeout(()=>{e.classList.add('hidden');e.querySelector('div').textContent='LEVEL UP!'},1100)}
+
+function tick(){
+  time--;
+  $('timer').textContent=time;
+  $('timerBar').style.width=(time/90*100)+'%';
+  if(time<=0)finish(false);
+}
+
+function start(){
+  running=true;time=90;score=answered=correctStreak=wrongStreak=0;level=1;used={1:[],2:[],3:[],4:[],5:[],6:[]};
+  $('startScreen').classList.add('hidden');$('resultScreen').classList.add('hidden');
+  $('questionScreen').classList.remove('hidden');$('timer').textContent=90;
+  $('timerBar').style.width='100%';
+  clearInterval(timerId);
+  timerId=setInterval(tick,1000);
+  nextQuestion();
+}
+
+function finish(clear){
+  if(!running)return;
+  running=false;
+  clearInterval(timerId);
+  $('questionScreen').classList.add('hidden');
+  $('resultScreen').classList.remove('hidden');$('finalScore').textContent=score;
+  $('finalAnswered').textContent=answered;
+  if(clear){
+    $('resultIcon').textContent='🎉';
+    $('resultTitle').textContent='テスト対策バッチリ！';
+    $('resultMessage').textContent='15問クリア！プリントの基本・応用問題を見事にクリアしました！';
+    confetti({particleCount:180,spread:100,origin:{y:.6}});
+  }else{
+    $('resultIcon').textContent='⏰';
+    $('resultTitle').textContent='TIME UP';$('resultMessage').textContent=`時間切れ！ ${answered}問回答、${score}問正解。もう一度挑戦してプリントを復習しよう！`;
+  }
+}
+
+$('startBtn').onclick=start;
+$('retryBtn').onclick=start;
+</script>
+</body>
+</html>
+
+  
